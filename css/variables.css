@@ -1,0 +1,19 @@
+:root {
+  --bg-dark: #0b1026;
+  --bg-light: #f5f7ff;
+
+  --card-dark: #141b3a;
+  --card-light: #ffffff;
+
+  --text-dark: #ffffff;
+  --text-light: #0b1026;
+
+  --primary: #7c8cff;
+  --primary-soft: rgba(124, 140, 255, 0.18);
+
+  --success: #2de2a6;
+  --danger: #ff5c5c;
+
+  --radius: 18px;
+  --transition: 0.25s ease;
+}

@@ -1,0 +1,39 @@
+/* ---------- DARK ---------- */
+body[data-theme="dark"] {
+  background: radial-gradient(circle at top, #121a3f, #060a1e);
+  color: var(--text-dark);
+}
+
+body[data-theme="dark"] .card,
+body[data-theme="dark"] .task {
+  background: var(--card-dark);
+}
+
+/* ---------- LIGHT ---------- */
+body[data-theme="light"] {
+  background: linear-gradient(#f5f7ff, #e8ebff);
+  color: var(--text-light);
+}
+
+body[data-theme="light"] .card,
+body[data-theme="light"] .task {
+  background: var(--card-light);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid blue;
+}
+
+body[data-theme="light"] input,
+body[data-theme="light"] select {
+  background: #ffffff;
+  border: 1px solid var(--primary-soft);
+}
+
+body[data-theme="light"] .progress-bar {
+  background: #d8dcff;
+}
+
+body[data-theme="light"] .task-meta-row input[type="date"] {
+  background: #ffffff;
+  color: var(--text-light);
+  border: 1px solid #d8dcff;
+}

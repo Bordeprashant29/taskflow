@@ -43,9 +43,9 @@
 
         <div class="task-meta-row">
           <select id="priority">
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
+            <option value="low">🔵 Low</option>
+            <option value="medium">🟡 Medium</option>
+            <option value="high">🟣 High</option>
           </select>
 
           <input type="date" id="dueDate" />
@@ -55,6 +55,30 @@
 
       </form>
     </section>
+
+    <section class="card overview-card">
+  <h3>Today’s Overview</h3>
+
+  <ul class="overview-list">
+    <li>
+      <span>Total</span>
+      <strong id="ov-total">0</strong>
+    </li>
+    <li>
+      <span>Completed</span>
+      <strong id="ov-completed">0</strong>
+    </li>
+    <li>
+      <span>Active</span>
+      <strong id="ov-active">0</strong>
+    </li>
+    <li>
+      <span>Overdue</span>
+      <strong id="ov-overdue">0</strong>
+    </li>
+  </ul>
+</section>
+
 
     <section class="filters">
       <div>
@@ -77,6 +101,13 @@
       <p id="taskSummary">No tasks yet</p>
     </div>
 
+    <div class="sort-controls">
+  <button class="sort-btn active" data-sort="newest">Newest</button>
+  <button class="sort-btn" data-sort="oldest">Oldest</button>
+  <button class="sort-btn" data-sort="manual">Manual</button>
+</div>
+
+
     <!-- SEARCH -->
     <input
       id="searchInput"
@@ -90,7 +121,7 @@
   <ul id="taskList" class="task-list"></ul>
 
   <!-- TASK DETAIL PREVIEW -->
-<div id="taskPreview" class="task-preview">
+<div id="taskPreview" class="task-preview hidden">
   <div class="preview-empty">
     <h3>Select a task</h3>
     <p>Click a task to view details</p>

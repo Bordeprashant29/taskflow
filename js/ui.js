@@ -34,17 +34,48 @@ export const formatRelativeTime = (iso) => {
   return `${days} days ago`;
 };
 
+/* ---------- PREVIEW LI (CREATED ONCE) ---------- */
+const previewLi = document.createElement("li");
+previewLi.className = "preview-item";
+previewLi.style.listStyle = "none";
+
+const preview = document.getElementById("taskPreview");
+previewLi.appendChild(preview);
+
+/* ---------- TODAY OVERVIEW ---------- */
+const updateOverview = () => {
+  const total = state.tasks.length;
+  const completed = state.tasks.filter(t => t.completed).length;
+  const active = total - completed;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const overdue = state.tasks.filter(t => {
+    if (!t.dueDate || t.completed) return false;
+    const due = new Date(t.dueDate);
+    due.setHours(0, 0, 0, 0);
+    return due < today;
+  }).length;
+
+  document.getElementById("ov-total").textContent = total;
+  document.getElementById("ov-completed").textContent = completed;
+  document.getElementById("ov-active").textContent = active;
+  document.getElementById("ov-overdue").textContent = overdue;
+};
+
 /* ---------- RENDER ---------- */
 export const render = () => {
   const list = document.getElementById("taskList");
   const emptyState = document.getElementById("emptyState");
   const taskSummary = document.getElementById("taskSummary");
-  const preview = document.getElementById("taskPreview");
 
+  /* ---------- RESET UI ---------- */
   list.innerHTML = "";
+  preview.classList.add("hidden");
 
   /* ---------- FILTER + SEARCH ---------- */
-  const filtered = state.tasks.filter(task => {
+  const visibleTasks = state.tasks.filter(task => {
     const matchesFilter =
       state.filter === "completed"
         ? task.completed
@@ -59,35 +90,43 @@ export const render = () => {
     return matchesFilter && matchesSearch;
   });
 
-  /* ---------- SORT (NEWEST / OLDEST) ---------- */
-  const sorted = [...filtered].sort((a, b) => {
-    const timeA = new Date(a.editedAt || a.createdAt).getTime();
-    const timeB = new Date(b.editedAt || b.createdAt).getTime();
+  /* ---------- SORT (🔥 FIXED FOR MANUAL MODE) ---------- */
+  let sorted = [...visibleTasks];
 
-    return state.sort === "oldest"
-      ? timeA - timeB
-      : timeB - timeA; // newest default
-  });
+  if (state.sort !== "manual") {
+    sorted.sort((a, b) => {
+      const timeA = new Date(a.editedAt || a.createdAt).getTime();
+      const timeB = new Date(b.editedAt || b.createdAt).getTime();
+
+      return state.sort === "oldest"
+        ? timeA - timeB
+        : timeB - timeA;
+    });
+  }
 
   /* ---------- TASK LIST ---------- */
   sorted.forEach(task => {
     const overdue = isOverdue(task);
 
     const li = document.createElement("li");
-    li.className = `task ${task.completed ? "completed" : ""} ${overdue ? "overdue" : ""}`;
+    li.className = `
+      task
+      priority-${task.priority}
+      ${task.completed ? "completed" : ""}
+      ${overdue ? "overdue" : ""}
+    `;
     li.dataset.id = task.id;
 
     li.innerHTML = `
-      <label>
+      <div class="task-left">
         <input type="checkbox" ${task.completed ? "checked" : ""}>
         <span class="task-text">${task.text}</span>
-      </label>
+      </div>
 
       <div class="task-right">
         <span class="task-time">
           ${formatRelativeTime(task.editedAt || task.createdAt)}
         </span>
-
         <div class="actions">
           <button class="edit">✏️</button>
           <button class="delete">🗑️</button>
@@ -106,6 +145,9 @@ export const render = () => {
   document.getElementById("progress").style.width =
     total ? `${(completed / total) * 100}%` : "0%";
 
+  /* ---------- TODAY OVERVIEW ---------- */
+  updateOverview();
+
   /* ---------- EMPTY STATE ---------- */
   if (sorted.length === 0) {
     list.style.display = "none";
@@ -114,28 +156,26 @@ export const render = () => {
       state.filter === "all"
         ? "No tasks yet"
         : `No ${state.filter} tasks`;
+    return;
   } else {
     list.style.display = "flex";
     emptyState.style.display = "none";
-    taskSummary.textContent = `${sorted.length} task${sorted.length > 1 ? "s" : ""}`;
+    taskSummary.textContent =
+      `${sorted.length} task${sorted.length > 1 ? "s" : ""}`;
   }
 
-  /* ---------- TASK PREVIEW ---------- */
+  /* ---------- PREVIEW ---------- */
   const selected = state.tasks.find(t => t.id === state.selectedId);
+  if (!selected) return;
 
-  if (!selected) {
-    preview.innerHTML = `
-      <div class="preview-empty">
-        <h3>Select a task</h3>
-        <p>Click a task to view details</p>
-      </div>
-    `;
-    return;
-  }
+  const taskEl = [...list.children].find(
+    li => li.dataset.id === selected.id
+  );
+  if (!taskEl) return;
 
   const overdue = isOverdue(selected);
 
-  const historyHtml = (selected.history || [])
+  const historyHtml = selected.history
     .slice()
     .reverse()
     .map(h => `
@@ -173,6 +213,9 @@ export const render = () => {
       </div>
     </div>
   `;
+
+  taskEl.after(previewLi);
+  preview.classList.remove("hidden");
 
   /* ---------- PREVIEW ACTIONS ---------- */
   preview.querySelector(".preview-close").onclick = () => {

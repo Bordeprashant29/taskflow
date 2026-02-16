@@ -42,16 +42,20 @@
         </div>
 
         <div class="task-meta-row">
-          <select id="priority">
-            <option value="low">🔵 Low</option>
-            <option value="medium">🟡 Medium</option>
-            <option value="high">🟣 High</option>
-          </select>
+  <select id="priority">
+    <option value="low">🔵 Low</option>
+    <option value="medium">🟡 Medium</option>
+    <option value="high">🟣 High</option>
+  </select>
 
-          <input type="date" id="dueDate" />
+  <input type="date" id="dueDate" />
+</div>
 
-          <button type="submit" class="add-btn">ADD</button>
-        </div>
+<div class="task-action-row">
+  <button type="submit" class="add-btn">ADD</button>
+  <button type="button" id="clearBtn" class="clear-btn">Clear</button>
+</div>
+
 
       </form>
     </section>
@@ -142,6 +146,9 @@
 
 
 </main>
+
+<button id="undoBtn" class="undo-btn hidden">↩ Undo</button>
+
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 

@@ -3,7 +3,13 @@ import { saveTasks } from "./storage.js";
 import { render } from "./ui.js";
 import { uuid } from "./utils.js";
 
+/* ---------- ENV ---------- */
+const isMobile = () =>
+  window.matchMedia("(max-width: 900px)").matches;
+
 /* ---------- UNDO SNAPSHOT ---------- */
+let undoTimeout = null;
+
 const saveSnapshot = () => {
   state.lastSnapshot = JSON.parse(JSON.stringify(state.tasks));
 };
@@ -18,14 +24,38 @@ const undoLastAction = () => {
   render();
 };
 
+/* ---------- MOBILE UNDO BUTTON ---------- */
+const undoBtn = document.getElementById("undoBtn");
+
+const showUndo = () => {
+  if (!isMobile() || !undoBtn) return;
+
+  undoBtn.classList.remove("hidden");
+
+  clearTimeout(undoTimeout);
+  undoTimeout = setTimeout(() => {
+    undoBtn.classList.add("hidden");
+  }, 4000);
+};
+
 export const initEvents = () => {
   const taskForm = document.getElementById("taskForm");
   const taskInput = document.getElementById("taskInput");
   const priority = document.getElementById("priority");
   const dueDate = document.getElementById("dueDate");
+  const clearBtn = document.getElementById("clearBtn");
+
   const taskList = document.getElementById("taskList");
   const themeToggle = document.getElementById("themeToggle");
   const searchInput = document.getElementById("searchInput");
+
+  /* ---------- CLEAR FORM ---------- */
+  const clearForm = () => {
+    taskForm.reset();
+    state.editId = null;
+  };
+
+  clearBtn?.addEventListener("click", clearForm);
 
   /* ---------- SEARCH ---------- */
   searchInput.addEventListener("input", e => {
@@ -37,11 +67,12 @@ export const initEvents = () => {
   /* ---------- ADD / EDIT TASK ---------- */
   taskForm.addEventListener("submit", e => {
     e.preventDefault();
-
     const text = taskInput.value.trim();
     if (!text) return;
 
-    saveSnapshot(); // 🔑 snapshot before change
+    saveSnapshot();
+    showUndo();
+
     const now = new Date().toISOString();
 
     if (state.editId) {
@@ -73,7 +104,7 @@ export const initEvents = () => {
     render();
   });
 
-  /* ---------- TASK LIST CLICK HANDLER ---------- */
+  /* ---------- TASK LIST CLICK ---------- */
   taskList.addEventListener("click", e => {
     const taskEl = e.target.closest(".task");
     if (!taskEl) return;
@@ -85,11 +116,11 @@ export const initEvents = () => {
 
     /* CHECKBOX */
     if (e.target.matches("input[type='checkbox']")) {
-      saveSnapshot(); // 🔑 snapshot
+      saveSnapshot();
+      showUndo();
 
       task.completed = e.target.checked;
       task.editedAt = now;
-
       task.history.push({
         type: task.completed ? "completed" : "reopened",
         at: now
@@ -111,11 +142,16 @@ export const initEvents = () => {
 
     /* DELETE */
     if (e.target.classList.contains("delete")) {
-      saveSnapshot(); // 🔑 snapshot
+      saveSnapshot();
+      showUndo();
 
       state.tasks = state.tasks.filter(t => t.id !== task.id);
-      state.selectedId = null;
 
+      if (state.editId === task.id) {
+        clearForm(); // 🔑 FIX: no stale form data
+      }
+
+      state.selectedId = null;
       saveTasks();
       render();
       return;
@@ -159,37 +195,39 @@ export const initEvents = () => {
   themeToggle.addEventListener("click", () => {
     const next =
       document.body.dataset.theme === "dark" ? "light" : "dark";
-
     document.body.dataset.theme = next;
     localStorage.setItem("theme", next);
   });
 
-  /* ---------- DRAG & DROP (MANUAL ONLY) ---------- */
-  new Sortable(taskList, {
-    animation: 150,
-    ghostClass: "drag-ghost",
-    filter: "input, button",
-    preventOnFilter: false,
+  /* ---------- DRAG & DROP (DESKTOP + MANUAL ONLY) ---------- */
+  if (!isMobile()) {
+    new Sortable(taskList, {
+      animation: 150,
+      ghostClass: "drag-ghost",
+      filter: "input, button",
+      preventOnFilter: false,
 
-    onMove: () => state.sort === "manual",
+      onMove: () => state.sort === "manual",
 
-    onEnd: () => {
-      if (state.sort !== "manual") return;
+      onEnd: () => {
+        if (state.sort !== "manual") return;
 
-      saveSnapshot(); // 🔑 snapshot
+        saveSnapshot();
+        showUndo();
 
-      const ids = [...taskList.children]
-        .filter(el => el.classList.contains("task"))
-        .map(li => li.dataset.id);
+        const ids = [...taskList.children]
+          .filter(el => el.classList.contains("task"))
+          .map(li => li.dataset.id);
 
-      state.tasks.sort(
-        (a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)
-      );
+        state.tasks.sort(
+          (a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)
+        );
 
-      saveTasks();
-      render();
-    }
-  });
+        saveTasks();
+        render();
+      }
+    });
+  }
 
   /* ---------- TODAY OVERVIEW TOGGLE (MOBILE) ---------- */
   const overviewToggle = document.querySelector(".overview-toggle");
@@ -199,6 +237,12 @@ export const initEvents = () => {
     overviewCard.classList.toggle("open");
   });
 
+  /* ---------- MOBILE UNDO BUTTON ---------- */
+  undoBtn?.addEventListener("click", () => {
+    undoLastAction();
+    undoBtn.classList.add("hidden");
+  });
+
   /* ---------- KEYBOARD SHORTCUTS ---------- */
   document.addEventListener("keydown", e => {
     const activeEl = document.activeElement;
@@ -206,80 +250,29 @@ export const initEvents = () => {
       activeEl.tagName === "INPUT" ||
       activeEl.tagName === "TEXTAREA";
 
-    /* CTRL / CMD + Z → UNDO */
+    /* CTRL / CMD + Z */
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
       e.preventDefault();
       undoLastAction();
       return;
     }
 
-    /* ESC → close preview */
+    /* ESC */
     if (e.key === "Escape" && state.selectedId) {
       state.selectedId = null;
       render();
-      return;
     }
 
-    /* / → focus task input */
+    /* / */
     if (e.key === "/" && !isTyping) {
       e.preventDefault();
       taskInput.focus();
-      return;
     }
 
-    /* CTRL / CMD + K → search */
+    /* CTRL / CMD + K */
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
       e.preventDefault();
       searchInput.focus();
-      return;
-    }
-
-    if (!state.selectedId) return;
-
-    const visibleTasks = [...document.querySelectorAll(".task")];
-    const currentIndex = visibleTasks.findIndex(
-      t => t.dataset.id === state.selectedId
-    );
-
-    /* Arrow Down */
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      const next = visibleTasks[currentIndex + 1];
-      if (next) {
-        state.selectedId = next.dataset.id;
-        render();
-      }
-    }
-
-    /* Arrow Up */
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      const prev = visibleTasks[currentIndex - 1];
-      if (prev) {
-        state.selectedId = prev.dataset.id;
-        render();
-      }
-    }
-
-    /* Space → toggle completion */
-    if (e.key === " " && !isTyping) {
-      e.preventDefault();
-      const task = state.tasks.find(t => t.id === state.selectedId);
-      if (!task) return;
-
-      saveSnapshot(); // 🔑 snapshot
-
-      const now = new Date().toISOString();
-      task.completed = !task.completed;
-      task.editedAt = now;
-
-      task.history.push({
-        type: task.completed ? "completed" : "reopened",
-        at: now
-      });
-
-      saveTasks();
-      render();
     }
   });
 };

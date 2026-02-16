@@ -3,6 +3,21 @@ import { saveTasks } from "./storage.js";
 import { render } from "./ui.js";
 import { uuid } from "./utils.js";
 
+/* ---------- UNDO SNAPSHOT ---------- */
+const saveSnapshot = () => {
+  state.lastSnapshot = JSON.parse(JSON.stringify(state.tasks));
+};
+
+const undoLastAction = () => {
+  if (!state.lastSnapshot) return;
+
+  state.tasks = state.lastSnapshot;
+  state.lastSnapshot = null;
+
+  saveTasks();
+  render();
+};
+
 export const initEvents = () => {
   const taskForm = document.getElementById("taskForm");
   const taskInput = document.getElementById("taskInput");
@@ -26,6 +41,7 @@ export const initEvents = () => {
     const text = taskInput.value.trim();
     if (!text) return;
 
+    saveSnapshot(); // 🔑 snapshot before change
     const now = new Date().toISOString();
 
     if (state.editId) {
@@ -69,6 +85,8 @@ export const initEvents = () => {
 
     /* CHECKBOX */
     if (e.target.matches("input[type='checkbox']")) {
+      saveSnapshot(); // 🔑 snapshot
+
       task.completed = e.target.checked;
       task.editedAt = now;
 
@@ -93,8 +111,11 @@ export const initEvents = () => {
 
     /* DELETE */
     if (e.target.classList.contains("delete")) {
+      saveSnapshot(); // 🔑 snapshot
+
       state.tasks = state.tasks.filter(t => t.id !== task.id);
       state.selectedId = null;
+
       saveTasks();
       render();
       return;
@@ -155,6 +176,8 @@ export const initEvents = () => {
     onEnd: () => {
       if (state.sort !== "manual") return;
 
+      saveSnapshot(); // 🔑 snapshot
+
       const ids = [...taskList.children]
         .filter(el => el.classList.contains("task"))
         .map(li => li.dataset.id);
@@ -168,12 +191,27 @@ export const initEvents = () => {
     }
   });
 
+  /* ---------- TODAY OVERVIEW TOGGLE (MOBILE) ---------- */
+  const overviewToggle = document.querySelector(".overview-toggle");
+  const overviewCard = document.querySelector(".overview-card");
+
+  overviewToggle?.addEventListener("click", () => {
+    overviewCard.classList.toggle("open");
+  });
+
   /* ---------- KEYBOARD SHORTCUTS ---------- */
   document.addEventListener("keydown", e => {
     const activeEl = document.activeElement;
     const isTyping =
       activeEl.tagName === "INPUT" ||
       activeEl.tagName === "TEXTAREA";
+
+    /* CTRL / CMD + Z → UNDO */
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+      e.preventDefault();
+      undoLastAction();
+      return;
+    }
 
     /* ESC → close preview */
     if (e.key === "Escape" && state.selectedId) {
@@ -189,14 +227,13 @@ export const initEvents = () => {
       return;
     }
 
-    /* Ctrl / Cmd + K → focus search */
+    /* CTRL / CMD + K → search */
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
       e.preventDefault();
       searchInput.focus();
       return;
     }
 
-    /* Navigation requires a selected task */
     if (!state.selectedId) return;
 
     const visibleTasks = [...document.querySelectorAll(".task")];
@@ -229,6 +266,8 @@ export const initEvents = () => {
       e.preventDefault();
       const task = state.tasks.find(t => t.id === state.selectedId);
       if (!task) return;
+
+      saveSnapshot(); // 🔑 snapshot
 
       const now = new Date().toISOString();
       task.completed = !task.completed;

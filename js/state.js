@@ -4,5 +4,7 @@ export const state = {
   search: "",
   selectedId: null,
   editId: null,
-  sort: "newest" 
+  sort: "manual",
+
+  lastSnapshot: null 
 };
